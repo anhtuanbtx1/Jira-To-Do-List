@@ -3,7 +3,7 @@ import { useStore } from '../data/store';
 import { loadJiraSettings, saveJiraSettings, fetchJiraProjects } from '../utils/jiraApi';
 import {
     LayoutDashboard, List, Columns3, Layers, CalendarDays,
-    Upload, ChevronDown, FolderKanban, Settings, Loader, Cloud,
+    Upload, ChevronDown, FolderKanban, Settings, Loader, Cloud, Clock, BarChart3,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -168,6 +168,20 @@ export default function Sidebar() {
                 >
                     <Settings size={18} />
                     <span>Jira Settings</span>
+                </div>
+                <div
+                    className={`nav-item ${state.currentPage === 'logwork' ? 'active' : ''}`}
+                    onClick={() => dispatch({ type: 'SET_PAGE', payload: 'logwork' })}
+                >
+                    <Clock size={18} />
+                    <span>Log Work</span>
+                </div>
+                <div
+                    className={`nav-item ${state.currentPage === 'logworkstats' ? 'active' : ''}`}
+                    onClick={() => dispatch({ type: 'SET_PAGE', payload: 'logworkstats' })}
+                >
+                    <BarChart3 size={18} />
+                    <span>Thống kê Log</span>
                 </div>
             </nav>
 

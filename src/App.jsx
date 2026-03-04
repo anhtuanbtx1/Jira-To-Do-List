@@ -12,7 +12,9 @@ import EpicsPage from './pages/EpicsPage';
 import SprintPage from './pages/SprintPage';
 import ImportPage from './pages/ImportPage';
 import SettingsPage from './pages/SettingsPage';
-import { LayoutDashboard, List, Columns3, Layers, CalendarDays, Upload, Settings } from 'lucide-react';
+import LogWorkPage from './pages/LogWorkPage';
+import LogWorkStatsPage from './pages/LogWorkStatsPage';
+import { LayoutDashboard, List, Columns3, Layers, CalendarDays, Upload, Settings, Clock, BarChart3 } from 'lucide-react';
 
 const PAGE_CONFIG = {
   dashboard: { title: 'Dashboard', icon: LayoutDashboard, component: Dashboard },
@@ -22,6 +24,8 @@ const PAGE_CONFIG = {
   sprints: { title: 'Sprints', icon: CalendarDays, component: SprintPage },
   import: { title: 'Import Excel', icon: Upload, component: ImportPage },
   settings: { title: 'Cấu hình Jira', icon: Settings, component: SettingsPage },
+  logwork: { title: 'Log Work (Tempo)', icon: Clock, component: LogWorkPage },
+  logworkstats: { title: 'Thống kê Log Work', icon: BarChart3, component: LogWorkStatsPage },
 };
 
 function AppContent() {
