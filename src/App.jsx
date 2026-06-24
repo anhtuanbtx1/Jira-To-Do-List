@@ -1,6 +1,7 @@
 import React from 'react';
 import { StoreProvider, useStore } from './data/store';
 import Sidebar from './components/Sidebar';
+import JiraProjectSelector from './components/JiraProjectSelector';
 import StoryModal from './components/StoryModal';
 import EpicModal from './components/EpicModal';
 import SprintModal from './components/SprintModal';
@@ -14,7 +15,8 @@ import ImportPage from './pages/ImportPage';
 import SettingsPage from './pages/SettingsPage';
 import LogWorkPage from './pages/LogWorkPage';
 import LogWorkStatsPage from './pages/LogWorkStatsPage';
-import { LayoutDashboard, List, Columns3, Layers, CalendarDays, Upload, Settings, Clock, BarChart3 } from 'lucide-react';
+import ReleaseNotePage from './pages/ReleaseNotePage';
+import { LayoutDashboard, List, Columns3, Layers, CalendarDays, Upload, Settings, Clock, BarChart3, FileText } from 'lucide-react';
 
 const PAGE_CONFIG = {
   dashboard: { title: 'Dashboard', icon: LayoutDashboard, component: Dashboard },
@@ -22,6 +24,7 @@ const PAGE_CONFIG = {
   board: { title: 'Board', icon: Columns3, component: BoardPage },
   epics: { title: 'Epics', icon: Layers, component: EpicsPage },
   sprints: { title: 'Sprints', icon: CalendarDays, component: SprintPage },
+  releasenote: { title: 'AI Release Note', icon: FileText, component: ReleaseNotePage },
   import: { title: 'Import Excel', icon: Upload, component: ImportPage },
   settings: { title: 'Cấu hình Jira', icon: Settings, component: SettingsPage },
   logwork: { title: 'Log Work (Tempo)', icon: Clock, component: LogWorkPage },
@@ -47,6 +50,9 @@ function AppContent() {
                 <span className="text-xs text-muted">{currentProject.name}</span>
               )}
             </div>
+          </div>
+          <div className="main-header-actions">
+            <JiraProjectSelector />
           </div>
         </header>
         <div className="page-content">

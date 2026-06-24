@@ -11,7 +11,15 @@ const DEFAULT_SETTINGS = {
 export function loadJiraSettings() {
     try {
         const saved = localStorage.getItem(JIRA_SETTINGS_KEY);
-        if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+        const parsed = saved ? JSON.parse(saved) : {};
+
+        return {
+            baseUrl: import.meta.env.VITE_JIRA_BASE_URL !== undefined ? import.meta.env.VITE_JIRA_BASE_URL : (parsed.baseUrl || DEFAULT_SETTINGS.baseUrl),
+            bearerToken: import.meta.env.VITE_JIRA_BEARER_TOKEN !== undefined ? import.meta.env.VITE_JIRA_BEARER_TOKEN : (parsed.bearerToken || DEFAULT_SETTINGS.bearerToken),
+            cookie: import.meta.env.VITE_JIRA_COOKIE !== undefined ? import.meta.env.VITE_JIRA_COOKIE : (parsed.cookie || DEFAULT_SETTINGS.cookie),
+            defaultProjectKey: import.meta.env.VITE_JIRA_DEFAULT_PROJECT_KEY !== undefined ? import.meta.env.VITE_JIRA_DEFAULT_PROJECT_KEY : (parsed.defaultProjectKey || DEFAULT_SETTINGS.defaultProjectKey),
+            issueTypeName: import.meta.env.VITE_JIRA_ISSUE_TYPE_NAME !== undefined ? import.meta.env.VITE_JIRA_ISSUE_TYPE_NAME : (parsed.issueTypeName || DEFAULT_SETTINGS.issueTypeName),
+        };
     } catch (e) { console.error('Failed to load Jira settings', e); }
     return { ...DEFAULT_SETTINGS };
 }

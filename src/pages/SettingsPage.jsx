@@ -9,8 +9,21 @@ export default function SettingsPage() {
     const [showToken, setShowToken] = useState(false);
     const [saved, setSaved] = useState(false);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         saveJiraSettings(form);
+        if (import.meta.env.DEV) {
+            try {
+                await fetch('/api/save-env', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(form),
+                });
+            } catch (err) {
+                console.error('Failed to save configuration to environment variables', err);
+            }
+        }
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
     };
