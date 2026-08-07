@@ -95,8 +95,60 @@ export default function CreateStoryPage() {
             notify('Vui lòng nhập Họ Tên và Tháng/Năm trước khi tạo tự động', 'error');
             return;
         }
-        const autoSubtasks = [1, 2, 3, 4].map(week => ({
-            title: `Cao Nguyễn Anh Tuấn [${form.monthYear}, Tuần ${week}, Khoảng thời gian]`,
+
+        // Tính toán các tuần của tháng/năm
+        const [monthStr, yearStr] = form.monthYear.split('/');
+        if (!monthStr || !yearStr) {
+            notify('Tháng/Năm không hợp lệ. Vui lòng nhập định dạng MM/YYYY', 'error');
+            return;
+        }
+
+        const month = parseInt(monthStr, 10);
+        const year = parseInt(yearStr, 10);
+
+        // Tạo ra các subtask theo 4 tuần (giả lập hoặc tính chuẩn ngày)
+        // Dưới đây là logic tính chuẩn tuần:
+        // Lấy ngày đầu tháng và ngày cuối tháng
+        const firstDay = new Date(year, month - 1, 1);
+        const lastDay = new Date(year, month, 0); // Ngày cuối cùng của tháng
+
+        const formatShortDate = (date) => {
+            return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+        };
+
+        const weeks = [];
+        let currentStartDate = new Date(firstDay);
+        let weekNum = 1;
+
+        while (currentStartDate <= lastDay) {
+            // Tính ngày Chủ nhật của tuần hiện tại (cuối tuần)
+            // Nếu currentStartDate là T2 (1) thì CN là (7-1=6) ngày sau.
+            // Hàm getDay() trả về 0(CN), 1(T2)... 6(T7)
+            let dayOfWeek = currentStartDate.getDay();
+            let daysToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+
+            let currentEndDate = new Date(currentStartDate);
+            currentEndDate.setDate(currentStartDate.getDate() + daysToSunday);
+
+            // Không vượt quá ngày cuối tháng
+            if (currentEndDate > lastDay) {
+                currentEndDate = new Date(lastDay);
+            }
+
+            weeks.push({
+                week: weekNum,
+                start: formatShortDate(currentStartDate),
+                end: formatShortDate(currentEndDate)
+            });
+
+            // Bắt đầu tuần mới từ ngày hôm sau
+            currentStartDate = new Date(currentEndDate);
+            currentStartDate.setDate(currentStartDate.getDate() + 1);
+            weekNum++;
+        }
+
+        const autoSubtasks = weeks.map(w => ({
+            title: `Cao Nguyễn Anh Tuấn [${form.monthYear}, Tuần ${w.week}, ${w.start} - ${w.end}]`,
             assignee: form.assignee
         }));
         setSubtasks(autoSubtasks);
