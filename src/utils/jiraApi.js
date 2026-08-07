@@ -126,7 +126,7 @@ function buildPayload(story, projectKey, issueTypeName) {
  * Create a single Jira issue
  * @returns {{ success: boolean, key?: string, error?: string }}
  */
-async function createJiraIssue(settings, payload) {
+export async function createJiraIssue(settings, payload) {
     const url = resolveApiUrl(settings.baseUrl, '/rest/api/2/issue');
 
     const headers = {
@@ -302,4 +302,31 @@ export async function testJiraConnection(settings) {
     } catch (err) {
         return { success: false, error: err.message };
     }
+}
+
+/**
+ * Create a subtask linked to a parent issue
+ * @param {Object} settings - Jira settings
+ * @param {string} parentKey - Key of the parent issue (e.g., PROJ-123)
+ * @param {Object} subtaskData - Subtask data (title, assignee, etc)
+ * @param {string} projectKey - Project key
+ * @returns {Promise<{ success: boolean, key?: string, error?: string }>}
+ */
+export async function createJiraSubtask(settings, parentKey, subtaskData, projectKey) {
+    const payload = {
+        fields: {
+            project: { key: projectKey },
+            parent: { key: parentKey },
+            summary: subtaskData.title,
+            issuetype: { name: 'Sub-task' },
+        }
+    };
+
+    if (subtaskData.assignee) {
+        // Note: setting assignee might require exact accountId on Jira Cloud, or name on Jira Server.
+        // We'll use name for simplicity as it matches current implementation.
+        payload.fields.assignee = { name: subtaskData.assignee };
+    }
+
+    return await createJiraIssue(settings, payload);
 }

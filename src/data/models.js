@@ -69,6 +69,7 @@ export function createUserStory({
   points = 0,
   acceptanceCriteria = '',
   assignee = '',
+  subtasks = [],
 } = {}) {
   return {
     id: uuidv4(),
@@ -84,6 +85,7 @@ export function createUserStory({
     points,
     acceptanceCriteria,
     assignee,
+    subtasks,
     createdAt: new Date().toISOString(),
   };
 }

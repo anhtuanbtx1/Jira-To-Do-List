@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../data/store';
 import { PRIORITY, STORY_STATUS } from '../data/models';
-import { X } from 'lucide-react';
+import { X, Plus, Trash2, Cloud, Loader } from 'lucide-react';
+import { loadJiraSettings, createJiraIssue, createJiraSubtask } from '../utils/jiraApi';
 
 export default function StoryModal() {
-    const { state, dispatch, notify, projectEpics, projectSprints } = useStore();
+    const { state, dispatch, notify, projectEpics, projectSprints, currentProject } = useStore();
     const editing = state.editingStory;
+
+    // Check if Jira is configured
+    const jiraSettings = loadJiraSettings();
+    const isJiraConfigured = !!(jiraSettings.baseUrl && jiraSettings.bearerToken);
+
+    const [isPushing, setIsPushing] = useState(false);
+    const [syncToJira, setSyncToJira] = useState(false);
 
     const [form, setForm] = useState({
         title: '', description: '', asA: '', iWantTo: '', soThat: '',
         epicId: '', sprintId: '', status: STORY_STATUS.TODO,
         priority: PRIORITY.MEDIUM, points: 0, acceptanceCriteria: '', assignee: '',
     });
+
+    const [subtasks, setSubtasks] = useState([]);
 
     useEffect(() => {
         if (editing) {
@@ -29,39 +39,142 @@ export default function StoryModal() {
                 acceptanceCriteria: editing.acceptanceCriteria || '',
                 assignee: editing.assignee || '',
             });
+            setSubtasks(editing.subtasks || []);
         } else {
             setForm({
                 title: '', description: '', asA: '', iWantTo: '', soThat: '',
                 epicId: '', sprintId: '', status: STORY_STATUS.TODO,
                 priority: PRIORITY.MEDIUM, points: 0, acceptanceCriteria: '', assignee: '',
             });
+            setSubtasks([]);
         }
     }, [editing]);
 
-    const handleSubmit = (e) => {
+    const addSubtask = () => {
+        setSubtasks([...subtasks, { title: '', assignee: '' }]);
+    };
+
+    const updateSubtask = (index, field, value) => {
+        const newSubtasks = [...subtasks];
+        newSubtasks[index][field] = value;
+        setSubtasks(newSubtasks);
+    };
+
+    const removeSubtask = (index) => {
+        const newSubtasks = [...subtasks];
+        newSubtasks.splice(index, 1);
+        setSubtasks(newSubtasks);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.title.trim()) return;
 
+        // Validating subtasks
+        const validSubtasks = subtasks.filter(st => st.title.trim());
+
+        if (syncToJira && isJiraConfigured && currentProject && !editing) {
+            setIsPushing(true);
+            const projectKey = jiraSettings.defaultProjectKey || currentProject.name;
+
+            // Build Description
+            let description = '';
+            if (form.asA || form.iWantTo || form.soThat) {
+                description += `As a ${form.asA || '...' }, I want to ${form.iWantTo || '...' } so that ${form.soThat || '...' }`;
+            }
+            if (form.description) {
+                description += (description ? '\n\n' : '') + form.description;
+            }
+            if (form.acceptanceCriteria) {
+                description += (description ? '\n\n' : '') + 'Acceptance Criteria:\n' + form.acceptanceCriteria;
+            }
+
+            // Create Story Payload
+            const payload = {
+                fields: {
+                    project: { key: projectKey },
+                    summary: form.title,
+                    description: description || form.title,
+                    issuetype: { name: jiraSettings.issueTypeName || 'Story' },
+                }
+            };
+
+            if (form.assignee) {
+                payload.fields.assignee = { name: form.assignee };
+            }
+
+            try {
+                // 1. Create Story on Jira
+                const storyResult = await createJiraIssue(jiraSettings, payload);
+
+                if (storyResult.success) {
+                    let subtasksSuccess = 0;
+
+                    // 2. Create Subtasks if any
+                    for (const subtask of validSubtasks) {
+                        const subtaskResult = await createJiraSubtask(
+                            jiraSettings,
+                            storyResult.key,
+                            subtask,
+                            projectKey
+                        );
+                        if (subtaskResult.success) subtasksSuccess++;
+                    }
+
+                    notify(`Đã push lên Jira thành công! Story: ${storyResult.key} (${subtasksSuccess}/${validSubtasks.length} Subtasks)`);
+                } else {
+                    notify(`Lỗi tạo Story trên Jira: ${storyResult.error}`, 'error');
+                }
+            } catch (error) {
+                notify(`Lỗi kết nối Jira: ${error.message}`, 'error');
+            }
+            setIsPushing(false);
+        }
+
+        // Save locally
+        const storyData = { ...form, subtasks: validSubtasks };
+
         if (editing) {
-            dispatch({ type: 'UPDATE_STORY', payload: { ...form, id: editing.id } });
+            dispatch({ type: 'UPDATE_STORY', payload: { ...storyData, id: editing.id } });
             notify('User Story đã được cập nhật!');
         } else {
-            dispatch({ type: 'ADD_STORY', payload: form });
-            notify('User Story mới đã được tạo!');
+            dispatch({ type: 'ADD_STORY', payload: storyData });
+            if (!syncToJira) notify('User Story mới đã được tạo!');
         }
+
+        close();
     };
 
-    const close = () => dispatch({ type: 'TOGGLE_STORY_MODAL' });
+    const close = () => {
+        if (!isPushing) dispatch({ type: 'TOGGLE_STORY_MODAL' });
+    };
 
     return (
         <div className="modal-overlay" onClick={close}>
-            <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal modal-lg" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
                 <div className="modal-header">
                     <h3>{editing ? 'Chỉnh sửa User Story' : 'Tạo User Story mới'}</h3>
-                    <button className="btn btn-ghost btn-icon" onClick={close}><X size={18} /></button>
+                    <button type="button" className="btn btn-ghost btn-icon" onClick={close} disabled={isPushing}><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
-                    <div className="modal-body">
+                    <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                        {/* Sync to Jira Option */}
+                        {!editing && isJiraConfigured && currentProject && (
+                            <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--bg-glass)', border: '1px solid var(--accent-primary)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <input
+                                    type="checkbox"
+                                    id="syncToJira"
+                                    checked={syncToJira}
+                                    onChange={(e) => setSyncToJira(e.target.checked)}
+                                    style={{ width: 16, height: 16, accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+                                />
+                                <label htmlFor="syncToJira" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 500, color: 'var(--text-primary)' }}>
+                                    <Cloud size={18} style={{ color: 'var(--accent-primary)' }} />
+                                    Tạo và Đồng bộ trực tiếp lên Jira Project
+                                </label>
+                            </div>
+                        )}
+
                         <div className="form-group">
                             <label className="form-label">Tiêu đề *</label>
                             <input className="form-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Nhập tiêu đề User Story..." required />
@@ -118,43 +231,81 @@ export default function StoryModal() {
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Story Points</label>
-                                <select className="form-select" value={form.points} onChange={e => setForm({ ...form, points: parseInt(e.target.value) })}>
-                                    {[0, 1, 2, 3, 5, 8, 13, 21].map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Status</label>
-                                <select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-                                    {Object.values(STORY_STATUS).map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Assignee</label>
-                                <input className="form-input" value={form.assignee} onChange={e => setForm({ ...form, assignee: e.target.value })} placeholder="Tên người thực hiện" />
+                                <label className="form-label">Status & Assignee</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select className="form-select" style={{ flex: 1 }} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                                        {Object.values(STORY_STATUS).map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                    <input className="form-input" style={{ flex: 1 }} value={form.assignee} onChange={e => setForm({ ...form, assignee: e.target.value })} placeholder="Assignee (Tên)" />
+                                </div>
                             </div>
                         </div>
 
                         <div className="form-group">
                             <label className="form-label">Acceptance Criteria</label>
-                            <textarea className="form-textarea" value={form.acceptanceCriteria} onChange={e => setForm({ ...form, acceptanceCriteria: e.target.value })} placeholder="- Tiêu chí 1&#10;- Tiêu chí 2&#10;- Tiêu chí 3" rows={3} />
+                            <textarea className="form-textarea" value={form.acceptanceCriteria} onChange={e => setForm({ ...form, acceptanceCriteria: e.target.value })} placeholder="- Tiêu chí 1&#10;- Tiêu chí 2" rows={2} />
+                        </div>
+
+                        {/* Subtasks Section */}
+                        <div style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
+                            <div className="flex-between mb-16">
+                                <label className="form-label" style={{ margin: 0 }}>Subtasks ({subtasks.length})</label>
+                                <button type="button" className="btn btn-ghost btn-sm" onClick={addSubtask} style={{ padding: '4px 8px', fontSize: 12 }}>
+                                    <Plus size={14} style={{ marginRight: 4 }} /> Thêm Subtask
+                                </button>
+                            </div>
+
+                            {subtasks.length === 0 && (
+                                <div className="text-muted text-sm text-center" style={{ padding: '16px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                                    Chưa có subtask nào. Bấm "Thêm Subtask" để tạo công việc con.
+                                </div>
+                            )}
+
+                            {subtasks.map((subtask, index) => (
+                                <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                                    <input
+                                        className="form-input"
+                                        style={{ flex: 2 }}
+                                        placeholder={`Subtask ${index + 1} title...`}
+                                        value={subtask.title}
+                                        onChange={(e) => updateSubtask(index, 'title', e.target.value)}
+                                        required
+                                    />
+                                    <input
+                                        className="form-input"
+                                        style={{ flex: 1 }}
+                                        placeholder="Assignee"
+                                        value={subtask.assignee}
+                                        onChange={(e) => updateSubtask(index, 'assignee', e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-icon"
+                                        style={{ color: 'var(--accent-danger)' }}
+                                        onClick={() => removeSubtask(index)}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     </div>
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={close}>Hủy</button>
+                        <button type="button" className="btn btn-secondary" onClick={close} disabled={isPushing}>Hủy</button>
                         {editing && (
-                            <button type="button" className="btn btn-danger" onClick={() => {
+                            <button type="button" className="btn btn-danger" disabled={isPushing} onClick={() => {
                                 dispatch({ type: 'DELETE_STORY', payload: editing.id });
                                 notify('User Story đã bị xóa!', 'error');
+                                close();
                             }}>Xóa</button>
                         )}
-                        <button type="submit" className="btn btn-primary">{editing ? 'Cập nhật' : 'Tạo Story'}</button>
+                        <button type="submit" className="btn btn-primary" disabled={isPushing} style={{ minWidth: 120 }}>
+                            {isPushing ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8, verticalAlign: 'middle' }} /> Đang Push...</> : (editing ? 'Cập nhật' : (syncToJira ? 'Tạo & Push' : 'Tạo Story'))}
+                        </button>
                     </div>
                 </form>
             </div>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 }
