@@ -164,7 +164,7 @@ export default function CreateStoryPage() {
         const generatedTitle = `Cao Nguyễn Anh Tuấn [${form.monthYear.trim()}]`;
         const validSubtasks = subtasks.filter(st => st.title.trim());
 
-        if (syncToJira && isJiraConfigured && currentProject && !editing) {
+        if (syncToJira && isJiraConfigured && !editing) {
             setIsPushing(true);
             setLogs([]); // Reset logs
             const projectKey = 'PRHT'; // Theo Jira_API_Design.md, hardcode mặc định PRHT thay vì lấy từ currentProject
