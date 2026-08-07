@@ -2,7 +2,7 @@ import React from 'react';
 import { useStore } from '../data/store';
 import {
     LayoutDashboard, List, Columns3, Layers, CalendarDays,
-    Upload, FolderKanban, Settings, Clock, BarChart3, FileText,
+    Upload, FolderKanban, Settings, Clock, BarChart3, FileText, PlusSquare
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -10,6 +10,7 @@ export default function Sidebar() {
 
     const navItems = [
         { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { id: 'createstory', icon: PlusSquare, label: 'Tạo Story' },
         { id: 'backlog', icon: List, label: 'Backlog' },
         { id: 'board', icon: Columns3, label: 'Board' },
         { id: 'sprints', icon: CalendarDays, label: 'Sprints' },

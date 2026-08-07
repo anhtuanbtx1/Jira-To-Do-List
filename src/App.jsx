@@ -2,11 +2,11 @@ import React from 'react';
 import { StoreProvider, useStore } from './data/store';
 import Sidebar from './components/Sidebar';
 import JiraProjectSelector from './components/JiraProjectSelector';
-import StoryModal from './components/StoryModal';
 import EpicModal from './components/EpicModal';
 import SprintModal from './components/SprintModal';
 import ProjectModal from './components/ProjectModal';
 import Dashboard from './pages/Dashboard';
+import CreateStoryPage from './pages/CreateStoryPage';
 import BacklogPage from './pages/BacklogPage';
 import BoardPage from './pages/BoardPage';
 import EpicsPage from './pages/EpicsPage';
@@ -16,10 +16,11 @@ import SettingsPage from './pages/SettingsPage';
 import LogWorkPage from './pages/LogWorkPage';
 import LogWorkStatsPage from './pages/LogWorkStatsPage';
 import ReleaseNotePage from './pages/ReleaseNotePage';
-import { LayoutDashboard, List, Columns3, Layers, CalendarDays, Upload, Settings, Clock, BarChart3, FileText } from 'lucide-react';
+import { LayoutDashboard, List, Columns3, Layers, CalendarDays, Upload, Settings, Clock, BarChart3, FileText, PlusSquare } from 'lucide-react';
 
 const PAGE_CONFIG = {
   dashboard: { title: 'Dashboard', icon: LayoutDashboard, component: Dashboard },
+  createstory: { title: 'Tạo Story', icon: PlusSquare, component: CreateStoryPage },
   backlog: { title: 'Backlog', icon: List, component: BacklogPage },
   board: { title: 'Board', icon: Columns3, component: BoardPage },
   epics: { title: 'Epics', icon: Layers, component: EpicsPage },
@@ -61,7 +62,6 @@ function AppContent() {
       </main>
 
       {/* Modals */}
-      {state.showStoryModal && <StoryModal />}
       {state.showEpicModal && <EpicModal />}
       {state.showSprintModal && <SprintModal />}
       {state.showProjectModal && <ProjectModal />}

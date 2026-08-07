@@ -98,14 +98,14 @@ function reducer(state, action) {
         // ===== STORIES =====
         case 'ADD_STORY': {
             const story = { ...createUserStory(action.payload), projectId: state.currentProjectId };
-            return { ...state, stories: [...state.stories, story], showStoryModal: false, editingStory: null };
+            return { ...state, stories: [...state.stories, story], editingStory: null };
         }
         case 'ADD_STORIES_BULK': {
             const newStories = action.payload.map(s => ({ ...createUserStory(s), projectId: state.currentProjectId }));
             return { ...state, stories: [...state.stories, ...newStories] };
         }
         case 'UPDATE_STORY':
-            return { ...state, stories: state.stories.map(s => s.id === action.payload.id ? { ...s, ...action.payload } : s), showStoryModal: false, editingStory: null };
+            return { ...state, stories: state.stories.map(s => s.id === action.payload.id ? { ...s, ...action.payload } : s), editingStory: null };
         case 'DELETE_STORY':
             return { ...state, stories: state.stories.filter(s => s.id !== action.payload) };
         case 'MOVE_STORY_STATUS':
@@ -115,9 +115,7 @@ function reducer(state, action) {
         case 'UNASSIGN_STORY_FROM_SPRINT':
             return { ...state, stories: state.stories.map(s => s.id === action.payload ? { ...s, sprintId: null } : s) };
         case 'EDIT_STORY':
-            return { ...state, editingStory: action.payload, showStoryModal: true };
-        case 'TOGGLE_STORY_MODAL':
-            return { ...state, showStoryModal: !state.showStoryModal, editingStory: state.showStoryModal ? null : state.editingStory };
+            return { ...state, editingStory: action.payload, currentPage: 'createstory' };
 
         // ===== SPRINTS =====
         case 'ADD_SPRINT': {
