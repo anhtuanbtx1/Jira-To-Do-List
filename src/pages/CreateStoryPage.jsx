@@ -118,9 +118,20 @@ export default function CreateStoryPage() {
             return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
         };
 
+        const getISOWeekNumber = (date) => {
+            const target = new Date(date.valueOf());
+            const dayNr = (date.getDay() + 6) % 7;
+            target.setDate(target.getDate() - dayNr + 3);
+            const firstThursday = target.valueOf();
+            target.setMonth(0, 1);
+            if (target.getDay() !== 4) {
+                target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+            }
+            return 1 + Math.ceil((firstThursday - target) / 604800000);
+        };
+
         const weeks = [];
         let currentStartDate = new Date(firstDay);
-        let weekNum = 1;
 
         while (currentStartDate <= lastDay) {
             // Bước tới thứ 2 (hoặc ngày tiếp theo nếu đầu tháng không phải thứ 2)
@@ -159,12 +170,12 @@ export default function CreateStoryPage() {
 
             // Chỉ thêm vào list nếu start <= end
             if (currentStartDate <= currentEndDate) {
+                const currentWeekISO = getISOWeekNumber(currentStartDate);
                 weeks.push({
-                    week: weekNum,
+                    week: currentWeekISO,
                     start: formatShortDate(currentStartDate),
                     end: formatShortDate(currentEndDate)
                 });
-                weekNum++;
             }
 
             // Nhảy tới ngày hôm sau của đợt kết thúc (thường là T7)
