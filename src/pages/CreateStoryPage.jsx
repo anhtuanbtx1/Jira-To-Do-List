@@ -255,6 +255,41 @@ export default function CreateStoryPage() {
                 return;
             }
             setIsPushing(false);
+        } else {
+            // Trường hợp KHÔNG tick "Tạo và Đồng bộ trực tiếp lên Jira Project"
+            // Vẫn log thông tin Request giả lập để hiển thị ở ô log bên phải cho người dùng theo dõi
+            const projectKey = currentProject?.name || 'LOCAL';
+            const payload = {
+                fields: {
+                    project: { key: projectKey },
+                    summary: generatedTitle,
+                    description: form.description || generatedTitle,
+                    issuetype: { name: 'Story' },
+                }
+            };
+            if (form.assignee) {
+                payload.fields.assignee = { name: form.assignee };
+            }
+
+            setLogs([]); // Reset logs
+            addLog(`Story Request (Local Only - No Sync):\nPOST /rest/api/2/issue\n${JSON.stringify(payload, null, 2)}`);
+            addLog(`Story Response - 201 Created (Local Mock):\n{\n  "id": "local-${Date.now()}",\n  "key": "${projectKey}-${Math.floor(1000 + Math.random() * 9000)}",\n  "self": "http://local-database/issue"\n}`);
+
+            for (const subtask of validSubtasks) {
+                const subtaskPayload = {
+                    fields: {
+                        project: { key: projectKey },
+                        parent: { key: 'PARENT-KEY-MOCK' },
+                        summary: subtask.title,
+                        issuetype: { name: 'Sub-task' },
+                    }
+                };
+                if (subtask.assignee) {
+                    subtaskPayload.fields.assignee = { name: subtask.assignee };
+                }
+                addLog(`Subtask Request (Local Only - No Sync):\nPOST /rest/api/2/issue\n${JSON.stringify(subtaskPayload, null, 2)}`);
+                addLog(`Subtask Response - 201 Created (Local Mock):\n{\n  "id": "local-${Date.now()}",\n  "key": "${projectKey}-${Math.floor(1000 + Math.random() * 9000)}",\n  "self": "http://local-database/sub-issue"\n}`);
+            }
         }
 
         // Save locally (giữ các trường agile mặc định để không làm lỗi app)
