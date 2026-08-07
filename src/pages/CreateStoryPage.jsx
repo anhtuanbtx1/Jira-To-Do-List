@@ -272,14 +272,15 @@ export default function CreateStoryPage() {
             }
 
             setLogs([]); // Reset logs
+            const mockStoryKey = `${projectKey}-${Math.floor(1000 + Math.random() * 9000)}`;
             addLog(`Story Request (Local Only - No Sync):\nPOST /rest/api/2/issue\n${JSON.stringify(payload, null, 2)}`);
-            addLog(`Story Response - 201 Created (Local Mock):\n{\n  "id": "local-${Date.now()}",\n  "key": "${projectKey}-${Math.floor(1000 + Math.random() * 9000)}",\n  "self": "http://local-database/issue"\n}`);
+            addLog(`Story Response - 201 Created (Local Mock):\n{\n  "id": "local-${Date.now()}",\n  "key": "${mockStoryKey}",\n  "self": "http://local-database/issue"\n}`);
 
             for (const subtask of validSubtasks) {
                 const subtaskPayload = {
                     fields: {
                         project: { key: projectKey },
-                        parent: { key: 'PARENT-KEY-MOCK' },
+                        parent: { key: mockStoryKey },
                         summary: subtask.title,
                         issuetype: { name: 'Sub-task' },
                     }
