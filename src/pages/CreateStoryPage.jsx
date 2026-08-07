@@ -96,7 +96,7 @@ export default function CreateStoryPage() {
             return;
         }
         const autoSubtasks = [1, 2, 3, 4].map(week => ({
-            title: `${form.assignee} [Tháng ${form.monthYear}, Tuần ${week}, Khoảng thời gian]`,
+            title: `Cao Nguyễn Anh Tuấn [${form.monthYear}, Tuần ${week}, Khoảng thời gian]`,
             assignee: form.assignee
         }));
         setSubtasks(autoSubtasks);
@@ -109,7 +109,7 @@ export default function CreateStoryPage() {
             return;
         }
 
-        const generatedTitle = `${form.assignee.trim()} [${form.monthYear.trim()}]`;
+        const generatedTitle = `Cao Nguyễn Anh Tuấn [${form.monthYear.trim()}]`;
         const validSubtasks = subtasks.filter(st => st.title.trim());
 
         if (syncToJira && isJiraConfigured && currentProject && !editing) {
@@ -233,7 +233,7 @@ export default function CreateStoryPage() {
         }
     };
 
-    const previewTitle = form.assignee || form.monthYear ? `${form.assignee} [${form.monthYear}]` : 'Nhập thông tin để xem tiêu đề...';
+    const previewTitle = form.assignee || form.monthYear ? `Cao Nguyễn Anh Tuấn [${form.monthYear}]` : 'Nhập thông tin để xem tiêu đề...';
 
     return (
         <div style={{ maxWidth: 800, margin: '0 auto', paddingBottom: 40 }}>
