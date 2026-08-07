@@ -167,7 +167,7 @@ export default function CreateStoryPage() {
         if (syncToJira && isJiraConfigured && currentProject && !editing) {
             setIsPushing(true);
             setLogs([]); // Reset logs
-            const projectKey = jiraSettings.defaultProjectKey || currentProject.name;
+            const projectKey = 'PRHT'; // Theo Jira_API_Design.md, hardcode mặc định PRHT thay vì lấy từ currentProject
 
             // Create Story Payload
             const payload = {
@@ -258,7 +258,7 @@ export default function CreateStoryPage() {
         } else {
             // Trường hợp KHÔNG tick "Tạo và Đồng bộ trực tiếp lên Jira Project"
             // Vẫn log thông tin Request giả lập để hiển thị ở ô log bên phải cho người dùng theo dõi
-            const projectKey = currentProject?.name || 'LOCAL';
+            const projectKey = 'PRHT'; // Hardcode mặc định PRHT theo Jira_API_Design.md
             const payload = {
                 fields: {
                     project: { key: projectKey },
