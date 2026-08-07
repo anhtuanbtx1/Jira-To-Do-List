@@ -13,7 +13,7 @@ export default function CreateStoryPage() {
     const isJiraConfigured = !!(jiraSettings.baseUrl && jiraSettings.bearerToken);
 
     const [isPushing, setIsPushing] = useState(false);
-    const [syncToJira, setSyncToJira] = useState(false);
+    const [syncToJira, setSyncToJira] = useState(true); // Đổi mặc định thành true để tự động chọn Sync lên Jira
     const [logs, setLogs] = useState([]);
 
     const logsEndRef = useRef(null);
