@@ -15,8 +15,10 @@ export default function CreateStoryPage() {
     const [isPushing, setIsPushing] = useState(false);
     const [syncToJira, setSyncToJira] = useState(true); // Đổi mặc định thành true để tự động chọn Sync lên Jira
     const [logs, setLogs] = useState([]);
+    const [parentKey, setParentKey] = useState(''); // Mới: State cho Parent Key khi tạo Sub-task standalone
 
     const logsEndRef = useRef(null);
+    const formRef = useRef(null); // Mới: Dùng để gọi validation HTML5 programmatically
 
     const [form, setForm] = useState({
         assignee: '',
@@ -177,10 +179,184 @@ export default function CreateStoryPage() {
         setSubtasks(autoSubtasks);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!form.assignee.trim() || !form.monthYear.trim()) {
-            notify('Vui lòng nhập Họ Tên và Tháng/Năm', 'error');
+    // Luồng 1: Chỉ tạo riêng User Story
+    const handleCreateStoryOnly = async () => {
+        if (formRef.current && !formRef.current.reportValidity()) {
+            return;
+        }
+
+        const generatedTitle = `Cao Nguyễn Anh Tuấn [${form.monthYear.trim()}]`;
+
+        if (syncToJira && isJiraConfigured && !editing) {
+            setIsPushing(true);
+            setLogs([]); // Reset logs
+            const projectKey = 'PRHT';
+
+            const payload = {
+                fields: {
+                    project: { key: projectKey },
+                    summary: generatedTitle,
+                    description: form.description || generatedTitle,
+                    issuetype: { name: jiraSettings.issueTypeName || 'Story' },
+                }
+            };
+
+            if (form.assignee) {
+                payload.fields.assignee = { name: form.assignee };
+            }
+
+            try {
+                addLog(`Story Request:\nPOST /rest/api/2/issue\n${JSON.stringify(payload, null, 2)}`);
+                const storyResult = await createJiraIssue(jiraSettings, payload);
+
+                if (storyResult.success) {
+                    const storyResponseLog = {
+                        id: storyResult.id,
+                        key: storyResult.key,
+                        self: storyResult.self
+                    };
+                    addLog(`Story Response - 201 Created / 200 OK:\n${JSON.stringify(storyResponseLog, null, 2)}`);
+                    notify(`Đã push Story lên Jira thành công! Key: ${storyResult.key}`);
+                } else {
+                    addLog(`Story Response Error:\n${storyResult.error}`);
+                    notify(`Lỗi tạo Story trên Jira: ${storyResult.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`System Error:\n${error.message}`);
+                notify(`Lỗi kết nối Jira: ${error.message}`, 'error');
+            }
+            setIsPushing(false);
+        } else {
+            // Local Only log
+            const projectKey = 'PRHT';
+            const payload = {
+                fields: {
+                    project: { key: projectKey },
+                    summary: generatedTitle,
+                    description: form.description || generatedTitle,
+                    issuetype: { name: 'Story' },
+                }
+            };
+            if (form.assignee) {
+                payload.fields.assignee = { name: form.assignee };
+            }
+            setLogs([]);
+            const mockStoryKey = `${projectKey}-${Math.floor(1000 + Math.random() * 9000)}`;
+            addLog(`Story Request (Local Only - No Sync):\nPOST /rest/api/2/issue\n${JSON.stringify(payload, null, 2)}`);
+            addLog(`Story Response - 201 Created (Local Mock):\n{\n  "id": "local-${Date.now()}",\n  "key": "${mockStoryKey}",\n  "self": "http://local-database/issue"\n}`);
+        }
+
+        // Save locally (giữ các trường agile mặc định để không làm lỗi app, lưu Story không kèm subtasks)
+        const storyData = {
+            title: generatedTitle,
+            description: form.description,
+            assignee: form.assignee,
+            status: form.status,
+            asA: '', iWantTo: '', soThat: '', epicId: null, sprintId: null,
+            priority: PRIORITY.MEDIUM, points: 0, acceptanceCriteria: '',
+            subtasks: [] // Chỉ tạo Story nên subtasks để rỗng
+        };
+
+        if (editing) {
+            dispatch({ type: 'UPDATE_STORY', payload: { ...storyData, id: editing.id } });
+            notify('User Story đã được cập nhật!');
+            close();
+        } else {
+            dispatch({ type: 'ADD_STORY', payload: storyData });
+            if (!syncToJira) notify('User Story mới đã được tạo!');
+        }
+    };
+
+    // Luồng 2: Chỉ tạo riêng Subtasks (Cho phép nhập Parent Key, hoặc lấy từ state)
+    const handleCreateSubtasksOnly = async () => {
+        const validSubtasks = subtasks.filter(st => st.title.trim());
+        if (validSubtasks.length === 0) {
+            notify('Vui lòng thêm ít nhất một Subtask có nội dung', 'error');
+            return;
+        }
+
+        const projectKey = 'PRHT';
+
+        if (syncToJira && isJiraConfigured) {
+            if (!parentKey.trim()) {
+                notify('Vui lòng nhập Jira Parent Key để tạo Sub-task!', 'error');
+                return;
+            }
+
+            setIsPushing(true);
+            setLogs([]); // Reset logs
+            addLog(`Bắt đầu tạo ${validSubtasks.length} Subtasks cho Parent Key: ${parentKey.trim()}...`);
+
+            let subtasksSuccess = 0;
+
+            for (const subtask of validSubtasks) {
+                const subtaskPayload = {
+                    fields: {
+                        project: { key: projectKey },
+                        parent: { key: parentKey.trim() },
+                        summary: subtask.title,
+                        issuetype: { name: 'Sub-task' },
+                    }
+                };
+                if (subtask.assignee) {
+                    subtaskPayload.fields.assignee = { name: subtask.assignee };
+                }
+
+                try {
+                    addLog(`Subtask Request:\nPOST /rest/api/2/issue\n${JSON.stringify(subtaskPayload, null, 2)}`);
+                    const subtaskResult = await createJiraSubtask(
+                        jiraSettings,
+                        parentKey.trim(),
+                        subtask,
+                        projectKey
+                    );
+
+                    if (subtaskResult.success) {
+                        const subtaskResponseLog = {
+                            id: subtaskResult.id,
+                            key: subtaskResult.key,
+                            self: subtaskResult.self
+                        };
+                        addLog(`Subtask Response - 201 Created / 200 OK:\n${JSON.stringify(subtaskResponseLog, null, 2)}`);
+                        subtasksSuccess++;
+                    } else {
+                        addLog(`Subtask Response Error:\n${subtaskResult.error}`);
+                    }
+                } catch (error) {
+                    addLog(`System Error:\n${error.message}`);
+                }
+            }
+
+            notify(`Đã push Subtasks lên Jira! (${subtasksSuccess}/${validSubtasks.length} Subtasks thành công)`);
+            setIsPushing(false);
+        } else {
+            // Local Only mock
+            setLogs([]);
+            const resolvedParentKey = parentKey.trim() || 'MOCK-PARENT';
+            addLog(`Bắt đầu tạo Subtasks giả lập cho Parent Key: ${resolvedParentKey}...`);
+
+            for (const subtask of validSubtasks) {
+                const subtaskPayload = {
+                    fields: {
+                        project: { key: projectKey },
+                        parent: { key: resolvedParentKey },
+                        summary: subtask.title,
+                        issuetype: { name: 'Sub-task' },
+                    }
+                };
+                if (subtask.assignee) {
+                    subtaskPayload.fields.assignee = { name: subtask.assignee };
+                }
+                addLog(`Subtask Request (Local Only - No Sync):\nPOST /rest/api/2/issue\n${JSON.stringify(subtaskPayload, null, 2)}`);
+                addLog(`Subtask Response - 201 Created (Local Mock):\n{\n  "id": "local-${Date.now()}",\n  "key": "${projectKey}-${Math.floor(1000 + Math.random() * 9000)}",\n  "self": "http://local-database/sub-issue"\n}`);
+            }
+            notify(`Đã tạo giả lập ${validSubtasks.length} Subtasks thành công!`);
+        }
+    };
+
+    // Luồng 3: Tự động hóa tạo cả Story & Subtasks (Luồng gốc handleSubmit)
+    const handleCreateStoryAndSubtasks = async () => {
+        if (formRef.current && !formRef.current.reportValidity()) {
             return;
         }
 
@@ -344,6 +520,12 @@ export default function CreateStoryPage() {
         }
     };
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        // Giữ lại handleSubmit để tránh lỗi nếu form kích hoạt onSubmit mặc định
+        await handleCreateStoryAndSubtasks();
+    };
+
     const close = () => {
         if (!isPushing) {
             dispatch({ type: 'SET_PAGE', payload: 'backlog' });
@@ -365,9 +547,9 @@ export default function CreateStoryPage() {
                     <div className="card-header">
                         <h3 className="card-title" style={{ fontSize: 18 }}>{editing ? 'Chỉnh sửa User Story' : 'Tạo User Story & Subtasks'}</h3>
                     </div>
-                    <form onSubmit={handleSubmit} style={{ padding: 24 }}>
+                    <form ref={formRef} onSubmit={(e) => e.preventDefault()} style={{ padding: 24 }}>
                         {/* Sync to Jira Option */}
-                        {!editing && isJiraConfigured && currentProject && (
+                        {!editing && isJiraConfigured && (
                             <div style={{ marginBottom: 20, padding: '12px 16px', background: 'var(--bg-glass)', border: '1px solid var(--accent-primary)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <input
                                     type="checkbox"
@@ -423,6 +605,16 @@ export default function CreateStoryPage() {
                                 </div>
                             </div>
 
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label className="form-label" style={{ fontSize: 13 }}>Jira Parent Key (Tùy chọn - Dùng khi tạo Sub-task đơn lẻ)</label>
+                                <input
+                                    className="form-input"
+                                    value={parentKey}
+                                    onChange={e => setParentKey(e.target.value)}
+                                    placeholder="VD: PRHT-123 (Chỉ bắt buộc nếu click 'Tạo Sub-Task')"
+                                />
+                            </div>
+
                             {subtasks.length === 0 && (
                                 <div className="text-muted text-sm text-center" style={{ padding: '24px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
                                     Bấm "Tạo 4 tuần" để sinh tự động các subtask theo tháng.
@@ -458,7 +650,7 @@ export default function CreateStoryPage() {
                             ))}
                         </div>
 
-                        <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                        <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--border-color)', paddingTop: 20, flexWrap: 'wrap' }}>
                             <button type="button" className="btn btn-secondary" onClick={close} disabled={isPushing}>Hủy</button>
                             {editing && (
                                 <button type="button" className="btn btn-danger" disabled={isPushing} onClick={() => {
@@ -467,8 +659,46 @@ export default function CreateStoryPage() {
                                     close();
                                 }}>Xóa</button>
                             )}
-                            <button type="submit" className="btn btn-primary" disabled={isPushing} style={{ minWidth: 140 }}>
-                                {isPushing ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8, verticalAlign: 'middle' }} /> Đang Push...</> : (editing ? 'Cập nhật' : (syncToJira ? 'Tạo & Push Jira' : 'Tạo Story'))}
+
+                            {!editing && (
+                                <>
+                                    {/* Nút 1: Chỉ tạo riêng User Story */}
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        disabled={isPushing}
+                                        onClick={handleCreateStoryOnly}
+                                        style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', background: 'transparent' }}
+                                    >
+                                        Tạo User Story
+                                    </button>
+
+                                    {/* Nút 2: Chỉ tạo riêng Subtasks */}
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        disabled={isPushing}
+                                        onClick={handleCreateSubtasksOnly}
+                                        style={{ borderColor: 'var(--accent-success)', color: 'var(--accent-success)', background: 'transparent' }}
+                                    >
+                                        Tạo Sub-Task
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Nút 3: Tự động hóa tạo cả Story & Subtasks */}
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                disabled={isPushing}
+                                onClick={handleCreateStoryAndSubtasks}
+                                style={{ minWidth: 160 }}
+                            >
+                                {isPushing ? (
+                                    <><Loader size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8, verticalAlign: 'middle' }} /> Đang Push...</>
+                                ) : (
+                                    editing ? 'Cập nhật' : 'Tạo Story & Sub-Task'
+                                )}
                             </button>
                         </div>
                     </form>
