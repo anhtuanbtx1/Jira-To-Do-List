@@ -121,30 +121,53 @@ export default function CreateStoryPage() {
         let weekNum = 1;
 
         while (currentStartDate <= lastDay) {
-            // Tính ngày Chủ nhật của tuần hiện tại (cuối tuần)
-            // Nếu currentStartDate là T2 (1) thì CN là (7-1=6) ngày sau.
-            // Hàm getDay() trả về 0(CN), 1(T2)... 6(T7)
+            // Bước tới thứ 2 (hoặc ngày tiếp theo nếu đầu tháng không phải thứ 2)
+            // Nếu là T7(6) hoặc CN(0), tiến lên thứ 2 tuần tiếp theo
+            if (currentStartDate.getDay() === 0) {
+                currentStartDate.setDate(currentStartDate.getDate() + 1);
+                if (currentStartDate > lastDay) break;
+            } else if (currentStartDate.getDay() === 6) {
+                currentStartDate.setDate(currentStartDate.getDate() + 2);
+                if (currentStartDate > lastDay) break;
+            }
+
+            // Tính ngày thứ 6 của tuần hiện tại
+            // T2(1) -> cộng thêm 4 ngày
+            // Nếu bắt đầu giữa tuần (T3, T4...) thì chỉ cộng phần còn lại đến T6(5)
             let dayOfWeek = currentStartDate.getDay();
-            let daysToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+            let daysToFriday = 5 - dayOfWeek;
+
+            // Nếu ngày bắt đầu lớn hơn T6 (ví dụ bị kẹp trong điều kiện gì đó), thì ép về T6
+            if (daysToFriday < 0) daysToFriday = 0;
 
             let currentEndDate = new Date(currentStartDate);
-            currentEndDate.setDate(currentStartDate.getDate() + daysToSunday);
+            currentEndDate.setDate(currentStartDate.getDate() + daysToFriday);
 
             // Không vượt quá ngày cuối tháng
             if (currentEndDate > lastDay) {
-                currentEndDate = new Date(lastDay);
+                // Nếu ngày cuối cùng của tháng là T7, CN thì phải lùi lại T6
+                let tempEndDay = new Date(lastDay);
+                if (tempEndDay.getDay() === 0) tempEndDay.setDate(tempEndDay.getDate() - 2); // CN lùi về T6
+                else if (tempEndDay.getDay() === 6) tempEndDay.setDate(tempEndDay.getDate() - 1); // T7 lùi về T6
+
+                // Đảm bảo không lùi quá start date
+                if (tempEndDay < currentStartDate) tempEndDay = new Date(currentStartDate);
+                currentEndDate = tempEndDay;
             }
 
-            weeks.push({
-                week: weekNum,
-                start: formatShortDate(currentStartDate),
-                end: formatShortDate(currentEndDate)
-            });
+            // Chỉ thêm vào list nếu start <= end
+            if (currentStartDate <= currentEndDate) {
+                weeks.push({
+                    week: weekNum,
+                    start: formatShortDate(currentStartDate),
+                    end: formatShortDate(currentEndDate)
+                });
+                weekNum++;
+            }
 
-            // Bắt đầu tuần mới từ ngày hôm sau
+            // Nhảy tới ngày hôm sau của đợt kết thúc (thường là T7)
             currentStartDate = new Date(currentEndDate);
             currentStartDate.setDate(currentStartDate.getDate() + 1);
-            weekNum++;
         }
 
         const autoSubtasks = weeks.map(w => ({
