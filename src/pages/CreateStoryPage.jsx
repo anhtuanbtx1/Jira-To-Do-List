@@ -172,8 +172,8 @@ export default function CreateStoryPage() {
             currentStartDate.setDate(currentStartDate.getDate() + 1);
         }
 
-        const autoSubtasks = weeks.map(w => ({
-            title: `Cao Nguyễn Anh Tuấn [${form.monthYear}, Tuần ${w.week}, ${w.start} - ${w.end}]`,
+        const autoSubtasks = weeks.slice(0, 4).map(w => ({
+            title: `Cao Nguyễn Anh Tuấn [${form.monthYear}, ${w.week}, ${w.start} - ${w.end}]`,
             assignee: form.assignee
         }));
         setSubtasks(autoSubtasks);
