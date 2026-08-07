@@ -201,6 +201,12 @@ export default function CreateStoryPage() {
 
                     let subtasksSuccess = 0;
 
+                    if (validSubtasks.length > 0) {
+                        addLog(`Bắt đầu tạo ${validSubtasks.length} Subtasks...`);
+                    } else {
+                        addLog(`Không có Subtask nào để tạo.`);
+                    }
+
                     // 2. Create Subtasks if any
                     for (const subtask of validSubtasks) {
                         const subtaskPayload = {
