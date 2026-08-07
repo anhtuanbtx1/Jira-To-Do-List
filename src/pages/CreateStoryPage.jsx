@@ -361,48 +361,46 @@ export default function CreateStoryPage() {
             {/* Logs Console Terminal UI (Right Grid) */}
             <div style={{ flex: 1 }}>
                 <div style={{ position: 'sticky', top: 20 }}>
-                    {(isPushing || logs.length > 0) && (
+                    <div className="card" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+                        <div className="card-header" style={{ borderBottom: '1px solid var(--border-color)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 className="card-title" style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span>📡</span> Jira REST API Logs
+                            </h3>
+                            {isPushing && <span style={{ color: 'var(--accent-primary)', fontSize: 12, fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>PROCESSING...</span>}
+                        </div>
                         <div style={{
+                            flex: 1,
                             padding: 16,
-                            background: '#121212',
+                            background: '#0d1117',
                             color: '#4af626',
-                            borderRadius: 'var(--radius-md)',
                             fontFamily: 'Consolas, Monaco, monospace',
                             fontSize: 12.5,
-                            height: 'calc(100vh - 120px)',
                             overflowY: 'auto',
-                            border: '1px solid #333',
-                            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)'
+                            borderBottomLeftRadius: 'var(--radius-md)',
+                            borderBottomRightRadius: 'var(--radius-md)',
                         }}>
-                            <div style={{
-                                marginBottom: 12,
-                                borderBottom: '1px solid #222',
-                                paddingBottom: 8,
-                                color: '#aaa',
-                                fontSize: 11,
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.5,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                fontWeight: 'bold'
-                            }}>
-                                <span>📡 Jira REST API Pushing Logs</span>
-                                {isPushing && <span style={{ color: 'var(--accent-primary)', animation: 'pulse 1.5s infinite' }}>PROCESSING...</span>}
-                            </div>
-                            {logs.map((log, i) => (
-                                <pre key={i} style={{
-                                    margin: '0 0 12px 0',
-                                    whiteSpace: 'pre-wrap',
-                                    lineHeight: '1.5',
-                                    borderLeft: log.includes('Response Error') || log.includes('System Error') ? '2px solid var(--accent-danger)' : log.includes('Response - 201') ? '2px solid var(--accent-success)' : '2px solid var(--accent-primary)',
-                                    paddingLeft: 8
-                                }}>
-                                    {log}
-                                </pre>
-                            ))}
-                            <div ref={logsEndRef} />
+                            {logs.length === 0 && !isPushing ? (
+                                <div style={{ color: '#6e7681', textAlign: 'center', marginTop: 40, fontStyle: 'italic' }}>
+                                    Chưa có log nào. Khi ấn "Tạo & Push Jira", log quá trình đẩy dữ liệu sẽ hiển thị tại đây.
+                                </div>
+                            ) : (
+                                <>
+                                    {logs.map((log, i) => (
+                                        <pre key={i} style={{
+                                            margin: '0 0 12px 0',
+                                            whiteSpace: 'pre-wrap',
+                                            lineHeight: '1.5',
+                                            borderLeft: log.includes('Response Error') || log.includes('System Error') ? '2px solid var(--accent-danger)' : log.includes('Response - 201') ? '2px solid var(--accent-success)' : '2px solid var(--accent-primary)',
+                                            paddingLeft: 8
+                                        }}>
+                                            {log}
+                                        </pre>
+                                    ))}
+                                    <div ref={logsEndRef} />
+                                </>
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
 
