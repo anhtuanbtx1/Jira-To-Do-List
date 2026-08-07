@@ -219,12 +219,12 @@ export default function CreateStoryPage() {
         if (editing) {
             dispatch({ type: 'UPDATE_STORY', payload: { ...storyData, id: editing.id } });
             notify('User Story đã được cập nhật!');
+            close();
         } else {
             dispatch({ type: 'ADD_STORY', payload: storyData });
             if (!syncToJira) notify('User Story mới đã được tạo!');
+            // Khi tạo mới sẽ không gọi hàm close() để ở lại trang
         }
-
-        close();
     };
 
     const close = () => {
@@ -236,121 +236,140 @@ export default function CreateStoryPage() {
     const previewTitle = form.assignee || form.monthYear ? `Cao Nguyễn Anh Tuấn [${form.monthYear}]` : 'Nhập thông tin để xem tiêu đề...';
 
     return (
-        <div style={{ maxWidth: 800, margin: '0 auto', paddingBottom: 40 }}>
-            <div className="flex-between mb-16">
-                <button type="button" className="btn btn-ghost" onClick={close} disabled={isPushing} style={{ paddingLeft: 0 }}>
-                    <ArrowLeft size={16} style={{ marginRight: 6 }} /> Quay lại Backlog
-                </button>
-            </div>
-
-            <div className="card">
-                <div className="card-header">
-                    <h3 className="card-title" style={{ fontSize: 18 }}>{editing ? 'Chỉnh sửa User Story' : 'Tạo User Story & Subtasks'}</h3>
+        <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 40, display: 'flex', gap: 24 }}>
+            <div style={{ flex: 1 }}>
+                <div className="flex-between mb-16">
+                    <button type="button" className="btn btn-ghost" onClick={close} disabled={isPushing} style={{ paddingLeft: 0 }}>
+                        <ArrowLeft size={16} style={{ marginRight: 6 }} /> Quay lại Backlog
+                    </button>
                 </div>
-                <form onSubmit={handleSubmit} style={{ padding: 24 }}>
-                    {/* Sync to Jira Option */}
-                    {!editing && isJiraConfigured && currentProject && (
-                        <div style={{ marginBottom: 20, padding: '12px 16px', background: 'var(--bg-glass)', border: '1px solid var(--accent-primary)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <input
-                                type="checkbox"
-                                id="syncToJira"
-                                checked={syncToJira}
-                                onChange={(e) => setSyncToJira(e.target.checked)}
-                                style={{ width: 16, height: 16, accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
-                            />
-                            <label htmlFor="syncToJira" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 500, color: 'var(--text-primary)' }}>
-                                <Cloud size={18} style={{ color: 'var(--accent-primary)' }} />
-                                Tạo và Đồng bộ trực tiếp lên Jira Project
-                            </label>
-                        </div>
-                    )}
 
-                    <div className="form-row">
-                        <div className="form-group" style={{ flex: 2 }}>
-                            <label className="form-label">Họ Tên (Assignee) *</label>
-                            <input className="form-input" value={form.assignee} onChange={e => setForm({ ...form, assignee: e.target.value })} placeholder="VD: Nguyễn Văn A" required />
-                        </div>
-                        <div className="form-group" style={{ flex: 1 }}>
-                            <label className="form-label">Tháng/Năm *</label>
-                            <input className="form-input" value={form.monthYear} onChange={e => setForm({ ...form, monthYear: e.target.value })} placeholder="VD: 09/2025" required />
-                        </div>
+                <div className="card">
+                    <div className="card-header">
+                        <h3 className="card-title" style={{ fontSize: 18 }}>{editing ? 'Chỉnh sửa User Story' : 'Tạo User Story & Subtasks'}</h3>
                     </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Tiêu đề Story (Tự động)</label>
-                        <div style={{ padding: '8px 12px', background: 'var(--bg-body)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500 }}>
-                            {previewTitle}
-                        </div>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Mô tả chung (Tùy chọn)</label>
-                        <textarea className="form-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Mô tả cho Story..." rows={2} />
-                    </div>
-
-                    {/* Subtasks Section */}
-                    <div style={{ marginTop: 32, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
-                        <div className="flex-between mb-16" style={{ alignItems: 'flex-end' }}>
-                            <div>
-                                <label className="form-label" style={{ margin: 0, fontSize: 14 }}>Subtasks ({subtasks.length})</label>
-                                <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>Tự động chia công việc theo tuần</div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={handleAutoGenerateSubtasks} style={{ padding: '6px 12px', fontSize: 13, background: 'rgba(14, 165, 233, 0.1)', color: 'var(--accent-primary)' }}>
-                                    <Zap size={14} style={{ marginRight: 6 }} /> Tạo 4 tuần
-                                </button>
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={addSubtask} style={{ padding: '6px 12px', fontSize: 13 }}>
-                                    <Plus size={14} style={{ marginRight: 6 }} /> Thêm Subtask
-                                </button>
-                            </div>
-                        </div>
-
-                        {subtasks.length === 0 && (
-                            <div className="text-muted text-sm text-center" style={{ padding: '24px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
-                                Bấm "Tạo 4 tuần" để sinh tự động các subtask theo tháng.
+                    <form onSubmit={handleSubmit} style={{ padding: 24 }}>
+                        {/* Sync to Jira Option */}
+                        {!editing && isJiraConfigured && currentProject && (
+                            <div style={{ marginBottom: 20, padding: '12px 16px', background: 'var(--bg-glass)', border: '1px solid var(--accent-primary)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <input
+                                    type="checkbox"
+                                    id="syncToJira"
+                                    checked={syncToJira}
+                                    onChange={(e) => setSyncToJira(e.target.checked)}
+                                    style={{ width: 16, height: 16, accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+                                />
+                                <label htmlFor="syncToJira" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 500, color: 'var(--text-primary)' }}>
+                                    <Cloud size={18} style={{ color: 'var(--accent-primary)' }} />
+                                    Tạo và Đồng bộ trực tiếp lên Jira Project
+                                </label>
                             </div>
                         )}
 
-                        {subtasks.map((subtask, index) => (
-                            <div key={index} style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
-                                <input
-                                    className="form-input"
-                                    style={{ flex: 3 }}
-                                    placeholder={`Tên Subtask...`}
-                                    value={subtask.title}
-                                    onChange={(e) => updateSubtask(index, 'title', e.target.value)}
-                                    required
-                                />
-                                <input
-                                    className="form-input"
-                                    style={{ flex: 1 }}
-                                    placeholder="Assignee"
-                                    value={subtask.assignee}
-                                    onChange={(e) => updateSubtask(index, 'assignee', e.target.value)}
-                                />
-                                <button
-                                    type="button"
-                                    className="btn btn-ghost btn-icon"
-                                    style={{ color: 'var(--accent-danger)' }}
-                                    onClick={() => removeSubtask(index)}
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                        <div className="form-row">
+                            <div className="form-group" style={{ flex: 2 }}>
+                                <label className="form-label">Họ Tên (Assignee) *</label>
+                                <input className="form-input" value={form.assignee} onChange={e => setForm({ ...form, assignee: e.target.value })} placeholder="VD: Nguyễn Văn A" required />
                             </div>
-                        ))}
-                    </div>
+                            <div className="form-group" style={{ flex: 1 }}>
+                                <label className="form-label">Tháng/Năm *</label>
+                                <input className="form-input" value={form.monthYear} onChange={e => setForm({ ...form, monthYear: e.target.value })} placeholder="VD: 09/2025" required />
+                            </div>
+                        </div>
 
-                    {/* Logs Console Terminal UI */}
+                        <div className="form-group">
+                            <label className="form-label">Tiêu đề Story (Tự động)</label>
+                            <div style={{ padding: '8px 12px', background: 'var(--bg-body)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500 }}>
+                                {previewTitle}
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Mô tả chung (Tùy chọn)</label>
+                            <textarea className="form-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Mô tả cho Story..." rows={2} />
+                        </div>
+
+                        {/* Subtasks Section */}
+                        <div style={{ marginTop: 32, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                            <div className="flex-between mb-16" style={{ alignItems: 'flex-end' }}>
+                                <div>
+                                    <label className="form-label" style={{ margin: 0, fontSize: 14 }}>Subtasks ({subtasks.length})</label>
+                                    <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>Tự động chia công việc theo tuần</div>
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleAutoGenerateSubtasks} style={{ padding: '6px 12px', fontSize: 13, background: 'rgba(14, 165, 233, 0.1)', color: 'var(--accent-primary)' }}>
+                                        <Zap size={14} style={{ marginRight: 6 }} /> Tạo 4 tuần
+                                    </button>
+                                    <button type="button" className="btn btn-secondary btn-sm" onClick={addSubtask} style={{ padding: '6px 12px', fontSize: 13 }}>
+                                        <Plus size={14} style={{ marginRight: 6 }} /> Thêm Subtask
+                                    </button>
+                                </div>
+                            </div>
+
+                            {subtasks.length === 0 && (
+                                <div className="text-muted text-sm text-center" style={{ padding: '24px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                                    Bấm "Tạo 4 tuần" để sinh tự động các subtask theo tháng.
+                                </div>
+                            )}
+
+                            {subtasks.map((subtask, index) => (
+                                <div key={index} style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
+                                    <input
+                                        className="form-input"
+                                        style={{ flex: 3 }}
+                                        placeholder={`Tên Subtask...`}
+                                        value={subtask.title}
+                                        onChange={(e) => updateSubtask(index, 'title', e.target.value)}
+                                        required
+                                    />
+                                    <input
+                                        className="form-input"
+                                        style={{ flex: 1 }}
+                                        placeholder="Assignee"
+                                        value={subtask.assignee}
+                                        onChange={(e) => updateSubtask(index, 'assignee', e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-icon"
+                                        style={{ color: 'var(--accent-danger)' }}
+                                        onClick={() => removeSubtask(index)}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                            <button type="button" className="btn btn-secondary" onClick={close} disabled={isPushing}>Hủy</button>
+                            {editing && (
+                                <button type="button" className="btn btn-danger" disabled={isPushing} onClick={() => {
+                                    dispatch({ type: 'DELETE_STORY', payload: editing.id });
+                                    notify('User Story đã bị xóa!', 'error');
+                                    close();
+                                }}>Xóa</button>
+                            )}
+                            <button type="submit" className="btn btn-primary" disabled={isPushing} style={{ minWidth: 140 }}>
+                                {isPushing ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8, verticalAlign: 'middle' }} /> Đang Push...</> : (editing ? 'Cập nhật' : (syncToJira ? 'Tạo & Push Jira' : 'Tạo Story'))}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {/* Logs Console Terminal UI (Right Grid) */}
+            <div style={{ flex: 1 }}>
+                <div style={{ position: 'sticky', top: 20 }}>
                     {(isPushing || logs.length > 0) && (
                         <div style={{
-                            marginTop: 32,
                             padding: 16,
                             background: '#121212',
                             color: '#4af626',
                             borderRadius: 'var(--radius-md)',
                             fontFamily: 'Consolas, Monaco, monospace',
                             fontSize: 12.5,
-                            maxHeight: 280,
+                            height: 'calc(100vh - 120px)',
                             overflowY: 'auto',
                             border: '1px solid #333',
                             boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)'
@@ -384,22 +403,9 @@ export default function CreateStoryPage() {
                             <div ref={logsEndRef} />
                         </div>
                     )}
-
-                    <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
-                        <button type="button" className="btn btn-secondary" onClick={close} disabled={isPushing}>Hủy</button>
-                        {editing && (
-                            <button type="button" className="btn btn-danger" disabled={isPushing} onClick={() => {
-                                dispatch({ type: 'DELETE_STORY', payload: editing.id });
-                                notify('User Story đã bị xóa!', 'error');
-                                close();
-                            }}>Xóa</button>
-                        )}
-                        <button type="submit" className="btn btn-primary" disabled={isPushing} style={{ minWidth: 140 }}>
-                            {isPushing ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite', marginRight: 8, verticalAlign: 'middle' }} /> Đang Push...</> : (editing ? 'Cập nhật' : (syncToJira ? 'Tạo & Push Jira' : 'Tạo Story'))}
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
+
             <style>{`
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
