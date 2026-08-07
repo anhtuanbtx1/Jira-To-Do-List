@@ -47,12 +47,12 @@ export default function CreateStoryPage() {
             });
             setSubtasks(editing.subtasks || []);
         } else {
-            // Khởi tạo mặc định tháng/năm hiện tại
+            // Khởi tạo mặc định tháng/năm hiện tại và assignee mặc định là tuan.cna
             const now = new Date();
             const currentMonthYear = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 
             setForm({
-                assignee: '',
+                assignee: 'tuan.cna',
                 monthYear: currentMonthYear,
                 description: '',
                 status: STORY_STATUS.TODO,
