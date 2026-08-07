@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../data/store';
 import { PRIORITY, STORY_STATUS } from '../data/models';
 import { Plus, Trash2, Cloud, Loader, ArrowLeft, Zap } from 'lucide-react';
@@ -14,6 +14,9 @@ export default function CreateStoryPage() {
 
     const [isPushing, setIsPushing] = useState(false);
     const [syncToJira, setSyncToJira] = useState(false);
+    const [logs, setLogs] = useState([]);
+
+    const logsEndRef = useRef(null);
 
     const [form, setForm] = useState({
         assignee: '',
@@ -56,7 +59,20 @@ export default function CreateStoryPage() {
             });
             setSubtasks([]);
         }
+        setLogs([]);
     }, [editing]);
+
+    // Auto-scroll log console
+    useEffect(() => {
+        if (logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [logs]);
+
+    const addLog = (message) => {
+        const timestamp = new Date().toLocaleTimeString();
+        setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
+    };
 
     const addSubtask = () => {
         setSubtasks([...subtasks, { title: '', assignee: form.assignee }]);
@@ -98,6 +114,7 @@ export default function CreateStoryPage() {
 
         if (syncToJira && isJiraConfigured && currentProject && !editing) {
             setIsPushing(true);
+            setLogs([]); // Reset logs
             const projectKey = jiraSettings.defaultProjectKey || currentProject.name;
 
             // Create Story Payload
@@ -115,29 +132,75 @@ export default function CreateStoryPage() {
             }
 
             try {
+                // Log Story Request
+                addLog(`Story Request:\nPOST /rest/api/2/issue\n${JSON.stringify(payload, null, 2)}`);
+
                 // 1. Create Story on Jira
                 const storyResult = await createJiraIssue(jiraSettings, payload);
 
                 if (storyResult.success) {
+                    const storyResponseLog = {
+                        id: storyResult.id,
+                        key: storyResult.key,
+                        self: storyResult.self
+                    };
+                    // Log Story Response (Success)
+                    addLog(`Story Response - 201 Created / 200 OK:\n${JSON.stringify(storyResponseLog, null, 2)}`);
+
                     let subtasksSuccess = 0;
 
                     // 2. Create Subtasks if any
                     for (const subtask of validSubtasks) {
+                        const subtaskPayload = {
+                            fields: {
+                                project: { key: projectKey },
+                                parent: { key: storyResult.key },
+                                summary: subtask.title,
+                                issuetype: { name: 'Sub-task' },
+                            }
+                        };
+                        if (subtask.assignee) {
+                            subtaskPayload.fields.assignee = { name: subtask.assignee };
+                        }
+
+                        // Log Subtask Request
+                        addLog(`Subtask Request:\nPOST /rest/api/2/issue\n${JSON.stringify(subtaskPayload, null, 2)}`);
+
                         const subtaskResult = await createJiraSubtask(
                             jiraSettings,
                             storyResult.key,
                             subtask,
                             projectKey
                         );
-                        if (subtaskResult.success) subtasksSuccess++;
+
+                        if (subtaskResult.success) {
+                            const subtaskResponseLog = {
+                                id: subtaskResult.id,
+                                key: subtaskResult.key,
+                                self: subtaskResult.self
+                            };
+                            // Log Subtask Response (Success)
+                            addLog(`Subtask Response - 201 Created / 200 OK:\n${JSON.stringify(subtaskResponseLog, null, 2)}`);
+                            subtasksSuccess++;
+                        } else {
+                            // Log Subtask Response (Error)
+                            addLog(`Subtask Response Error:\n${subtaskResult.error}`);
+                        }
                     }
 
                     notify(`Đã push lên Jira thành công! Story: ${storyResult.key} (${subtasksSuccess}/${validSubtasks.length} Subtasks)`);
                 } else {
+                    // Log Story Response (Error)
+                    addLog(`Story Response Error:\n${storyResult.error}`);
                     notify(`Lỗi tạo Story trên Jira: ${storyResult.error}`, 'error');
+                    setIsPushing(false);
+                    return; // Stop here if Story creation failed
                 }
             } catch (error) {
+                addLog(`System Error:\n${error.message}`);
                 notify(`Lỗi kết nối Jira: ${error.message}`, 'error');
+                setIsPushing(false);
+                return;
             }
             setIsPushing(false);
         }
@@ -277,6 +340,51 @@ export default function CreateStoryPage() {
                         ))}
                     </div>
 
+                    {/* Logs Console Terminal UI */}
+                    {(isPushing || logs.length > 0) && (
+                        <div style={{
+                            marginTop: 32,
+                            padding: 16,
+                            background: '#121212',
+                            color: '#4af626',
+                            borderRadius: 'var(--radius-md)',
+                            fontFamily: 'Consolas, Monaco, monospace',
+                            fontSize: 12.5,
+                            maxHeight: 280,
+                            overflowY: 'auto',
+                            border: '1px solid #333',
+                            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)'
+                        }}>
+                            <div style={{
+                                marginBottom: 12,
+                                borderBottom: '1px solid #222',
+                                paddingBottom: 8,
+                                color: '#aaa',
+                                fontSize: 11,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.5,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontWeight: 'bold'
+                            }}>
+                                <span>📡 Jira REST API Pushing Logs</span>
+                                {isPushing && <span style={{ color: 'var(--accent-primary)', animation: 'pulse 1.5s infinite' }}>PROCESSING...</span>}
+                            </div>
+                            {logs.map((log, i) => (
+                                <pre key={i} style={{
+                                    margin: '0 0 12px 0',
+                                    whiteSpace: 'pre-wrap',
+                                    lineHeight: '1.5',
+                                    borderLeft: log.includes('Response Error') || log.includes('System Error') ? '2px solid var(--accent-danger)' : log.includes('Response - 201') ? '2px solid var(--accent-success)' : '2px solid var(--accent-primary)',
+                                    paddingLeft: 8
+                                }}>
+                                    {log}
+                                </pre>
+                            ))}
+                            <div ref={logsEndRef} />
+                        </div>
+                    )}
+
                     <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
                         <button type="button" className="btn btn-secondary" onClick={close} disabled={isPushing}>Hủy</button>
                         {editing && (
@@ -292,7 +400,10 @@ export default function CreateStoryPage() {
                     </div>
                 </form>
             </div>
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+            `}</style>
         </div>
     );
 }
